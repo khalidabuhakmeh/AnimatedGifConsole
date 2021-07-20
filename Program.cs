@@ -14,7 +14,7 @@ Console.CancelKeyPress += (_, _) => cts.Cancel();
 await AnsiConsole.Live(Text.Empty)
     .StartAsync(async ctx =>
     {
-        using var gif = await Image.LoadAsync("hallway.gif", new GifDecoder());
+        using var gif = await Image.LoadAsync("aliens.gif", new GifDecoder());
         var metadata = gif.Frames.RootFrame.Metadata.GetGifMetadata();
 
         while (!cts.IsCancellationRequested)
@@ -22,7 +22,7 @@ await AnsiConsole.Live(Text.Empty)
             foreach (var frame in gif.Frames.Cast<ImageFrame<Rgba32>>())
             {
                 var bytes = await GetBytesFromFrameAsync(frame, cts);
-                var canvasImage = new CanvasImage(bytes);
+                var canvasImage = new CanvasImage(bytes).MaxWidth(50);
                 ctx.UpdateTarget(canvasImage);
 
                 // feels like anything less than 100ms is slow
