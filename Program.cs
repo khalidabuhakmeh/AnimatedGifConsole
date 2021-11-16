@@ -1,12 +1,10 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Gif;
+﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Spectre.Console;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, _) => cts.Cancel();
@@ -14,38 +12,29 @@ Console.CancelKeyPress += (_, _) => cts.Cancel();
 await AnsiConsole.Live(Text.Empty)
     .StartAsync(async ctx =>
     {
-        using var gif = await Image.LoadAsync("aliens.gif", new GifDecoder());
+        using var gif = await Image<Rgba32>.LoadAsync("aliens.gif");
         var metadata = gif.Frames.RootFrame.Metadata.GetGifMetadata();
 
         while (!cts.IsCancellationRequested)
         {
-            foreach (var frame in gif.Frames.Cast<ImageFrame<Rgba32>>())
+            for (int i = 0; i < gif.Frames.Count; i++)
             {
-                var bytes = await GetBytesFromFrameAsync(frame, cts);
-                var canvasImage = new CanvasImage(bytes).MaxWidth(50);
+                var delay = gif.Frames[i].Metadata.GetGifMetadata().FrameDelay;
+                using var clone = gif.Frames.CloneFrame(i);
+
+                await using var memoryStream = new MemoryStream();
+                await clone.SaveAsBmpAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                var canvasImage = new CanvasImage(memoryStream).MaxWidth(50);
                 ctx.UpdateTarget(canvasImage);
 
-                // feels like anything less than 100ms is slow
-                var delay = TimeSpan.FromMilliseconds(Math.Max(100, metadata.FrameDelay));
-                await Task.Delay(delay, cts.Token);
+                // FrameDelay is measured in 1/100th second.
+                // Let's round down since we're encoding per frame.
+                //
+                // Ideally we would only do this loop + save once and maintain a list of frames
+                // that we dispose of at the end of the operations.
+                await Task.Delay(TimeSpan.FromMilliseconds(delay * 5), cts.Token);
             }
         }
     });
-
-
-async Task<byte[]> GetBytesFromFrameAsync(ImageFrame<Rgba32> imageFrame,
-    CancellationTokenSource cancellationTokenSource)
-{
-    using var image = new Image<Rgba32>(imageFrame.Width, imageFrame.Height);
-    for (var y = 0; y < image.Height; y++)
-    {
-        for (var x = 0; x < image.Width; x++)
-        {
-            image[x, y] = imageFrame[x, y];
-        }
-    }
-
-    await using var memoryStream = new MemoryStream();
-    await image.SaveAsBmpAsync(memoryStream, cancellationTokenSource.Token);
-    return memoryStream.ToArray();
-}
