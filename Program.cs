@@ -30,10 +30,7 @@ await AnsiConsole.Live(Text.Empty)
                 ctx.UpdateTarget(canvasImage);
 
                 // FrameDelay is measured in 1/100th second.
-                // Let's round down since we're encoding per frame.
-                //
-                // Ideally we would only do this loop + save once and maintain a list of frames
-                // that we dispose of at the end of the operations.
+                // Let's half the delay since we're encoding per frame.
                 await Task.Delay(TimeSpan.FromMilliseconds(delay * 5), cts.Token);
             }
         }
